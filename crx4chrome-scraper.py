@@ -70,10 +70,10 @@ async def main():
 
     done_json_files = glob.glob(f"{extension_id}/*.json")
 
+    #sys.path.append("/path/to/aiohttp_chromium/src")
+
     import aiohttp_chromium as aiohttp
-
     import selenium_driverless
-
     from selenium_driverless.types.by import By
 
     async with aiohttp.ClientSession() as session:
