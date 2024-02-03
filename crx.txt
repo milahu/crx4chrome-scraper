@@ -1,0 +1,203 @@
+https://stackoverflow.com/questions/36207267/what-is-the-purpose-of-crx-file
+
+What is the purpose of CRX file?
+
+CRX has some extra metadata (it's signed with the extension's private key) compared to a ZIP. A CRX file can still be opened with a ZIP archiver though.
+
+
+
+$ unzip -l 2.0.2.crx >/dev/null
+warning [2.0.2.crx]:  566 extra bytes at beginning or within zipfile
+
+$ head -c 566 2.0.2.crx >2.0.2.crx.head.bin
+
+$ tail -c +$((566 + 1)) 2.0.2.crx >2.0.2.crx.body.zip 
+
+$ unzip -l 2.0.2.crx.body.zip >/dev/null 
+
+
+
+$ unzip -l 3.49.0.crx >/dev/null
+warning [3.49.0.crx]:  1321 extra bytes at beginning or within zipfile
+
+$ head -c 1321 3.49.0.crx >3.49.0.crx.head.bin
+
+$ tail -c +$((1321 + 1)) 3.49.0.crx >3.49.0.crx.body.zip
+
+$ unzip -l 3.49.0.crx.body.zip >/dev/null
+
+$ mkdir 3.49.0 && cd 3.49.0 && unzip ../3.49.0.crx
+
+$ version=$(basename "$PWD"); for level in {0..9}; do unzip -q -q -l ../$version.crx 2>/dev/null | cut -c31- | zip -X -@ -$level ../$version.level-$level.ordered.no-extra.zip; done
+
+$ { cat 3.49.0.crx.head.bin ; cat 3.49.0.level-6.ordered.no-extra.zip; } >3.49.0.level-6.ordered.no-extra.zip.with-head.crx 
+
+$ crx3 verify 3.49.0.crx
+OK_FULL
+
+$ crx3 verify 3.49.0.level-6.ordered.no-extra.zip.with-head.crx
+ERROR_SIGNATURE_VERIFICATION_FAILED
+
+$ for zip in 3.49.0.level-*zip; do xdelta3 -e -s $zip 3.49.0.crx.body.zip $zip.xdelta; xdelta3 -e -s 3.49.0.crx.body.zip $zip $zip.xdelta-reverse; done
+
+
+
+
+https://chromium.googlesource.com/chromium/src/+/lkgr/components/crx_file/
+
+The CRX File component is a collection of compilation units related to the creation or manipulation of CRX archive files.
+
+A CRX file is a ZIP archive with a prepended header section. The CRX file format is described in more detail in crx3.proto.
+
+
+
+https://chromium.googlesource.com/chromium/src/+/lkgr/components/crx_file/crx_creator.cc
+
+CreatorResult CreateCrxWithVerifiedContentsInHeader(
+    const base::FilePath& output_path,
+    const base::FilePath& zip_path,
+    crypto::RSAPrivateKey* signing_key,
+    const std::string& verified_contents) {
+
+SignArchiveAndCreateHeader(output_path, &file, signing_key, &header);
+
+WriteCRX(header, output_path, &file);
+
+ReadAndSignArchive(file, signer.get(), &signature);
+
+WriteArchive(&crx, file)
+
+
+
+https://superuser.com/questions/283008/binary-diff-patch-for-large-files-on-linux
+
+Binary diff/patch for large files on linux?
+
+xdelta can do everything you want. Fair warning though, if your images aren't very similar, you can end up with a very large patch, because xdelta uses half of the defined memory buffer for finding differences. More information is available at the TuningMemoryBudget wiki page. Increasing the buffer size may help out quite a bit.
+
+bsdiff is another option, but it's very RAM hungry and completely inappropriate for anything the size of a disk image.
+
+
+
+https://github.com/pawliczka/CRX3-Creator
+
+Python script for building google chrome extension crx3 package.
+
+
+
+https://pypi.org/project/crx3/
+
+crx3 is a python library for packaging and parsing crx files.
+
+
+
+https://github.com/gromnitsky/crx3-utils
+
+Create CRX3 files without Chrome, extract public keys, verify signatures; cli & api
+
+javascript
+
+
+
+https://docs.fileformat.com/misc/crx/
+
+
+
+https://belikoff.net/creating-reproducible-zip-archives/
+
+zip -X == zip --no-extra
+
+
+
+diff --color=always -u <(7z l -slt 2.0.2.crx.body.zip) <(7z l -slt 2.0.2.level-6.ordered.no-extra.zip) | less 
+
+-Attributes = 
++Attributes = _ -rw-r--r--
+-Characteristics = Descriptor UTF8
++Characteristics = 
+-Host OS = FAT
++Host OS = Unix
+
+
+
+https://superuser.com/questions/898481/how-to-create-a-zip-file-with-files-in-fat-format-on-linux
+
+
+
+diff --color=always -u <(zipinfo 2.0.2.crx.body.zip) <(zipinfo 2.0.2.level-6.ordered.no-extra.zip) | less
+
+--rw----     2.0 fat   162918 bl defN 15-Jul-11 22:43 backend.js
++-rw-r--r--  3.0 unx   162918 t- defN 15-Jul-11 22:43 backend.js
+--rw----     2.0 fat      221 bl defN 15-Jul-11 22:43 background.html
++-rw-r--r--  3.0 unx      221 t- defN 15-Jul-11 22:43 background.html
+--rw----     2.0 fat        0 bl defN 15-Jul-11 22:43 fonts/
++drwxr-xr-x  3.0 unx        0 b- stor 15-Jul-11 22:43 fonts/
+--rw----     2.0 fat    16460 bl defN 15-Jul-11 22:43 fonts/roboto-100.woff
++-rw-r--r--  3.0 unx    16460 b- defN 15-Jul-11 22:43 fonts/roboto-100.woff
+--rw----     2.0 fat    16524 bl defN 15-Jul-11 22:43 fonts/roboto-300.woff
++-rw-r--r--  3.0 unx    16524 b- defN 15-Jul-11 22:43 fonts/roboto-300.woff
+
+
+
+"zip -k" changes filenames
+
+
+
+https://unix.stackexchange.com/questions/577600/zip-file-with-fat-format-on-linux
+
+
+
+https://stackoverflow.com/questions/15033646/compression-method-for-xlsx-with-7z
+
+7z a -tzip new ./decomp_xlsx/*
+
+
+
+https://github.com/drivendataorg/repro-zipfile
+
+
+
+TODO reverse engineer the exact low-level compression parameters of a zip archive, to reproduce the exact zip archive from the same files
+
+https://www.reddit.com/r/AskReverseEngineering/comments/1ahd36y/reverse_engineer_the_exact_lowlevel_compression/
+
+
+
+$ time for crx in *.crx; do zstd -19 -f -q -k $crx; done 
+real    0m44.729s
+
+$ time for crx in *.crx; do bzip2 -9 -f -q -k $crx; done 
+real    1m12.283s
+
+$ time for crx in *.crx; do gzip -9 -f -q -k $crx; done 
+real    0m16.994s
+
+$ time for crx in *.crx; do xz -9 -f -q -k $crx; done 
+real    1m44.616s
+
+$ du -shc *.crx | tail -n1
+76M     total
+
+$ du -shc *.crx.zst | tail -n1
+72M     total
+
+$ du -shc *.crx.gz | tail -n1
+75M     total
+
+$ du -shc *.crx.xz | tail -n1
+73M     total
+
+
+
+gaoogdonmngmdlbinmiclicjpbjhgomg/3.5.0 $ stat node_modules/.gitignore
+stat: cannot statx 'node_modules/.gitignore': Permission denied
+
+gaoogdonmngmdlbinmiclicjpbjhgomg/3.5.0 $ stat node_modules
+  File: node_modules
+  Size: 4096            Blocks: 8          IO Block: 4096   directory
+Device: 8,1     Inode: 68464611    Links: 8
+Access: (0644/drw-r--r--)  Uid: ( 1000/    user)   Gid: (  100/   users)
+Access: 2017-07-29 11:50:50.000000000 +0200
+Modify: 2017-07-29 11:50:50.000000000 +0200
+Change: 2024-02-03 08:06:59.987587028 +0100
+ Birth: 2024-02-03 08:06:59.929586659 +0100
